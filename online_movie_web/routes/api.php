@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\V1\MovieController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,9 +21,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 //api/v1
 Route::group(['prefix' => 'v1', 'namespace' => 'App\Http\Controllers\Api\V1'], function () {
+    Route::get('movies/latest', [MovieController::class, 'latest']);
     Route::apiResource('movies', MovieController::class);
-    Route::get('/movies/{id}', 'MovieController@show');
-    Route::put('/movies/{id}', 'MovieController@update');
-    Route::delete('/movies/{id}', 'MovieController@destroy');
-    Route::post('/movies', 'MovieController@store');
+    // Route::get('/movies/{id}', 'MovieController@show');
+    // Route::put('/movies/{id}', 'MovieController@update');
+    // Route::delete('/movies/{id}', 'MovieController@destroy');
+    // Route::post('/movies', 'MovieController@store');
 });

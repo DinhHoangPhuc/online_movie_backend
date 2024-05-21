@@ -7,7 +7,8 @@ use App\Models\Movie;
 use App\Models\Country;
 use Illuminate\Http\Request;
 use App\Http\Resources\V1\MovieResource;
-use App\Filters\V1\MovieFilter;
+// use App\Filters\V1\MovieFilter;
+use App\Filters\V2\MovieFilter;
 
 class MovieController extends Controller
 {
@@ -36,6 +37,27 @@ class MovieController extends Controller
         //                                             ->appends($request->query()));
         // }
 
+        // $filter = new MovieFilter();
+        // $queryItems = $filter->transform($request);
+
+        // // return response()->json($queryItems);
+
+        // $query = Movie::with('genres', 'countries', 'actors');
+
+        // foreach ($queryItems as $item) {
+        //     if ($item[0] === 'genres') {
+        //         $query->whereHas('genres', function ($q) use ($item) {
+        //             // echo($item[2] . '<br>');
+        //             // $q->where('genre_name', 'LIKE', '%' . $item[2] . '%');
+        //             return respone()->json($item[2]);
+        //         });
+        //     } else {
+        //         $query->where($item[0], $item[1], $item[2]);
+        //     }
+        // }
+
+        // return MovieResource::collection($query->paginate(3)->appends($request->query()));
+
         $filter = new MovieFilter();
         $queryItems = $filter->transform($request);
 
@@ -44,7 +66,11 @@ class MovieController extends Controller
         foreach ($queryItems as $item) {
             if ($item[0] === 'genres') {
                 $query->whereHas('genres', function ($q) use ($item) {
-                    $q->where('genre_name', 'LIKE', '%' . $item[2] . '%');
+                    $q->where('genre_name', $item[2]);
+                });
+            } elseif ($item[0] === 'countries') {
+                $query->whereHas('countries', function ($q) use ($item) {
+                    $q->where('country_name', $item[2]);
                 });
             } else {
                 $query->where($item[0], $item[1], $item[2]);
@@ -52,6 +78,15 @@ class MovieController extends Controller
         }
 
         return MovieResource::collection($query->paginate(3)->appends($request->query()));
+    }
+
+    public function latest()
+    {
+        $latestMovies = Movie::with('genres', 'countries', 'actors')
+            ->orderBy('release_year', 'desc')
+            ->paginate(3);
+
+        return MovieResource::collection($latestMovies);
     }
 
     /**
