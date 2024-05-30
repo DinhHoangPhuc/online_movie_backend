@@ -11,6 +11,7 @@ use App\Http\Resources\V1\MovieResource;
 use App\Filters\V2\MovieFilter;
 use App\Http\Requests\ParameterRequest;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Gate;
 
 class MovieController extends Controller
 {
@@ -23,7 +24,13 @@ class MovieController extends Controller
     {
         $movies = Movie::with('genres', 'countries', 'actors')
             ->paginate(3);
-        return response()->json($movies, 200);
+
+        if(Gate::allows('isSubscriber')) {
+            return response()->json($movies, 200);
+        } else {
+            $movies = $movies->makeHidden('source');
+            return response()->json($movies, 200);
+        }
     }
 
     public function latest()
@@ -158,6 +165,10 @@ class MovieController extends Controller
     
         // return response()->json($movie, 201);
 
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'title' => 'required|max:255',
             'release_year' => 'required|integer',
@@ -191,12 +202,19 @@ class MovieController extends Controller
     public function show($id)
     {
         $movie = Movie::with('genres', 'countries', 'director')->find($id);
-        if (!$movie) {
-            return response()->json(['message' => 'Movie not found'], 404);
+
+        if (Gate::allows('isSubscriber')) {
+            if (!$movie) {
+                return response()->json(['message' => 'Movie not found'], 404);
+            }
+            return response()->json($movie, 200);
+        } else {
+            if (!$movie) {
+                return response()->json(['message' => 'Movie not found'], 404);
+            }
+            $movie = $movie->makeHidden('source');
+            return response()->json($movie, 200);
         }
-        // return response()->json(MovieResource::make($movie), 200);
-        // return MovieResource::make($movie);
-        return response()->json($movie, 200);
     }
 
     /**
@@ -221,6 +239,10 @@ class MovieController extends Controller
     {
         $movie = Movie::find($id);
 
+        if(Gate::denies('isAdmin', $movie)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         if (!$movie) {
             return response()->json(['message' => 'Movie not found'], 404);
         }
@@ -241,6 +263,10 @@ class MovieController extends Controller
     public function destroy($id)
     {
         $movie = Movie::find($id);
+
+        if(Gate::denies('isAdmin', $movie)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
         if (!$movie) {
             return response()->json(['message' => 'Movie not found'], 404);
