@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Genre;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Gate;
 
 class GenreController extends Controller
 {
@@ -26,6 +28,10 @@ class GenreController extends Controller
 
     public function store(Request $request)
     {
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
         ]);
@@ -40,6 +46,10 @@ class GenreController extends Controller
 
     public function update(Request $request, $id)
     {
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        
         $genre = Genre::find($id);
         if ($genre) {
             $validator = Validator::make($request->all(), [
@@ -58,6 +68,10 @@ class GenreController extends Controller
 
     public function destroy($id)
     {
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $genre = Genre::find($id);
         if ($genre) {
             $genre->delete();

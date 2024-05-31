@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Director;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Gate;
 
 class DirectorController extends Controller
 {
@@ -37,6 +39,10 @@ class DirectorController extends Controller
      */
     public function store(Request $request)
     {
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'country_id' => 'required|integer'
@@ -86,6 +92,10 @@ class DirectorController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'country_id' => 'required|integer'
@@ -113,6 +123,10 @@ class DirectorController extends Controller
      */
     public function destroy($id)
     {
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+        
         $director = Director::find($id);
         if ($director) {
             $director->delete();
