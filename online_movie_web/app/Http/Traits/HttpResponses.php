@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Http\Traits;
+
+
+trait HttpResponses {
+    protected function success($data, $message = null, $status = 200) {
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => $data
+        ], $status);
+    }
+
+    protected function error($data, $message = null, $status) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+            'data' => $data
+        ], $status);
+    }
+}

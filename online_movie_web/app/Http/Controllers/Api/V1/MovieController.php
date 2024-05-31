@@ -7,7 +7,11 @@ use App\Models\Movie;
 use App\Models\Country;
 use Illuminate\Http\Request;
 use App\Http\Resources\V1\MovieResource;
-use App\Filters\V1\MovieFilter;
+// use App\Filters\V1\MovieFilter;
+use App\Filters\V2\MovieFilter;
+use App\Http\Requests\ParameterRequest;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Gate;
 
 class MovieController extends Controller
 {
@@ -18,40 +22,114 @@ class MovieController extends Controller
      */
     public function index(Request $request)
     {
+        $movies = Movie::with('genres', 'countries', 'actors')
+            ->paginate(3);
 
-        // $movie = Movie::find(1)->with('genres', 'countries', 'director')->paginate(3);
-        // return response()->json($movie);
-
-        // return MovieResource::collection($movie);
-
-        // $filter = new MovieFilter();
-        // $queryItem = $filter->transform($request);
-
-        // if(count($queryItem) == 0) {
-        //     return MovieResource::collection(Movie::with('genres', 'countries', 'actors')->paginate(3));
-        // } else {
-        //     return MovieResource::collection(Movie::with('genres', 'countries', 'actors')
-        //                                             ->where($queryItem)
-        //                                             ->paginate(3)
-        //                                             ->appends($request->query()));
-        // }
-
-        $filter = new MovieFilter();
-        $queryItems = $filter->transform($request);
-
-        $query = Movie::with('genres', 'countries', 'actors');
-
-        foreach ($queryItems as $item) {
-            if ($item[0] === 'genres') {
-                $query->whereHas('genres', function ($q) use ($item) {
-                    $q->where('genre_name', 'LIKE', '%' . $item[2] . '%');
-                });
-            } else {
-                $query->where($item[0], $item[1], $item[2]);
-            }
+        if(Gate::allows('isSubscriber')) {
+            return response()->json($movies, 200);
+        } else {
+            $movies = $movies->makeHidden('source');
+            return response()->json($movies, 200);
         }
+    }
 
-        return MovieResource::collection($query->paginate(3)->appends($request->query()));
+    public function latest()
+    {
+        $latestMovies = Movie::with('genres', 'countries', 'actors')
+            ->orderBy('release_year', 'desc')
+            ->paginate(3);
+
+        // return MovieResource::collection($latestMovies);
+        return response()->json($latestMovies, 200);
+    }
+
+    public function filterMovies(Request $request)
+    {
+        if($request->has('genre') && $request->has('country') && $request->has('year')) {
+            $genre = $request->input('genre');
+            $country = $request->input('country');
+            $year = $request->input('year');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->whereHas('genres', function ($query) use ($genre) {
+                    $query->where('genre_name', $genre);
+                })
+                ->whereHas('countries', function ($query) use ($country) {
+                    $query->where('country_name', $country);
+                })
+                ->where('release_year', $year)
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else if($request->has('genre') && $request->has('country')) {
+            $genre = $request->input('genre');
+            $country = $request->input('country');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->whereHas('genres', function ($query) use ($genre) {
+                    $query->where('genre_name', $genre);
+                })
+                ->whereHas('countries', function ($query) use ($country) {
+                    $query->where('country_name', $country);
+                })
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else if($request->has('genre') && $request->has('year')) {
+            $genre = $request->input('genre');
+            $year = $request->input('year');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->whereHas('genres', function ($query) use ($genre) {
+                    $query->where('genre_name', $genre);
+                })
+                ->where('release_year', $year)
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else if($request->has('country') && $request->has('year')) {
+            $country = $request->input('country');
+            $year = $request->input('year');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->whereHas('countries', function ($query) use ($country) {
+                    $query->where('country_name', $country);
+                })
+                ->where('release_year', $year)
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else if($request->has('genre')) {
+            $genre = $request->input('genre');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->whereHas('genres', function ($query) use ($genre) {
+                    $query->where('genre_name', $genre);
+                })
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else if($request->has('country')) {
+            $country = $request->input('country');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->whereHas('countries', function ($query) use ($country) {
+                    $query->where('country_name', $country);
+                })
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else if($request->has('year')) {
+            $year = $request->input('year');
+
+            $movies = Movie::with('genres', 'countries', 'actors')
+                ->where('release_year', $year)
+                ->paginate(5);
+
+            return response()->json($movies, 200);
+        } else {
+        return response()->json(['message' => 'No filter criteria provided'], 400);
+        }
     }
 
     /**
@@ -72,20 +150,47 @@ class MovieController extends Controller
      */
     public function store(Request $request)
     {
-        $validatedData = $request->validate([
+        // $validatedData = $request->validate([
+        //     'title' => 'required|max:255',
+        //     'release_year' => 'required|integer',
+        //     'script_summary' => 'required',
+        //     'movie_length' => 'required|integer',
+        //     'poster' => 'required|url',
+        //     'genre_id' => 'required|integer|exists:genres,id',
+        //     'country_id' => 'required|integer|exists:countries,id',
+        //     'director_id' => 'required|integer|exists:directors,id',
+        // ]);
+    
+        // $movie = Movie::create($validatedData);
+    
+        // return response()->json($movie, 201);
+
+        if(Gate::denies('isAdmin')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
             'title' => 'required|max:255',
             'release_year' => 'required|integer',
             'script_summary' => 'required',
             'movie_length' => 'required|integer',
             'poster' => 'required|url',
+            'trailer' => 'required|url',
+            'source' => 'required|url',
             'genre_id' => 'required|integer|exists:genres,id',
             'country_id' => 'required|integer|exists:countries,id',
             'director_id' => 'required|integer|exists:directors,id',
         ]);
-    
-        $movie = Movie::create($validatedData);
-    
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 400);
+        }
+
+        $movie = new Movie();
+        $movie->fill($request->all());
+        $movie->save();
         return response()->json($movie, 201);
+
     }
 
     /**
@@ -94,13 +199,22 @@ class MovieController extends Controller
      * @param  \App\Models\Movie  $movie
      * @return \Illuminate\Http\Response
      */
-    public function show(Movie $movie)
+    public function show($id)
     {
-        $movie = Movie::with('genres', 'countries', 'director')->find($movie->id);
-        if (!$movie) {
-            return response()->json(['message' => 'Movie not found'], 404);
+        $movie = Movie::with('genres', 'countries', 'director')->find($id);
+
+        if (Gate::allows('isSubscriber')) {
+            if (!$movie) {
+                return response()->json(['message' => 'Movie not found'], 404);
+            }
+            return response()->json($movie, 200);
+        } else {
+            if (!$movie) {
+                return response()->json(['message' => 'Movie not found'], 404);
+            }
+            $movie = $movie->makeHidden('source');
+            return response()->json($movie, 200);
         }
-        return response()->json($movie);
     }
 
     /**
@@ -125,6 +239,10 @@ class MovieController extends Controller
     {
         $movie = Movie::find($id);
 
+        if(Gate::denies('isAdmin', $movie)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         if (!$movie) {
             return response()->json(['message' => 'Movie not found'], 404);
         }
@@ -133,6 +251,7 @@ class MovieController extends Controller
         $movie->save();
 
         return response()->json($movie);
+        // return MovieResource::make($movie);
     }
 
     /**
@@ -145,6 +264,10 @@ class MovieController extends Controller
     {
         $movie = Movie::find($id);
 
+        if(Gate::denies('isAdmin', $movie)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         if (!$movie) {
             return response()->json(['message' => 'Movie not found'], 404);
         }
@@ -152,5 +275,48 @@ class MovieController extends Controller
         $movie->delete();
 
         return response()->json(['message' => 'Movie deleted successfully']);
+    }
+
+    public function myApiMethod(Request $request, $parameter)
+    {
+        // Merge the parameter into the request object
+        $request->merge(['parameter' => $parameter]);
+
+        // Define the validation rules
+        $rules = [
+            'parameter' => 'required|alpha_num|min:3|max:10',
+        ];
+
+        // Define custom error messages
+        $messages = [
+            'parameter.required' => 'The parameter field is required.',
+            'parameter.alpha_num' => 'The parameter must only contain letters and numbers.',
+            'parameter.min' => 'The parameter must be at least 3 characters.',
+            'parameter.max' => 'The parameter must not be more than 10 characters.',
+        ];
+
+        // // Validate the request with custom messages
+        // $validatedData = $request->validate($rules, $messages);
+
+        // // Process the parameter after validation
+        // $response = [
+        //     'parameter' => $parameter,
+        //     'message' => 'This is your parameter'
+        // ];
+
+        // return response()->json($response);
+
+        $validator = \Validator::make($request->all(), $rules, $messages);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        } else {
+            $response = [
+                'parameter' => $parameter,
+                'message' => 'This is your parameter'
+            ];
+
+            return response()->json($response, 200);
+        }
     }
 }
